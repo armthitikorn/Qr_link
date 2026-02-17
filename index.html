@@ -8,39 +8,41 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px; background: #f4f7f6; }
         .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block; max-width: 400px; width: 100%; }
-        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
-        button { background: #2ecc71; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; width: 95%; font-weight: bold; }
-        #qrcode { margin-top: 25px; padding: 10px; background: white; border: 1px solid #eee; display: none; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        button { background: #2ecc71; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; width: 95%; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        button:hover { background: #27ae60; }
+        #qrcode { margin-top: 25px; padding: 15px; background: white; border: 1px solid #eee; display: none; border-radius: 8px; }
+        label { display: block; text-align: left; margin-left: 15px; font-size: 14px; color: #666; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>สร้าง QR Code มีวันหมดอายุ</h2>
-    <input type="text" id="targetUrl" placeholder="ระบุ URL ปลายทาง">
-    <label style="display:block; text-align:left; margin-left:15px;">เลือกวันหมดอายุ:</label>
+    <h2>สร้าง QR Code หมดอายุได้</h2>
+    <input type="text" id="targetUrl" placeholder="ระบุ URL ปลายทาง (เช่น https://google.com)">
+    <label>เลือกวันหมดอายุ:</label>
     <input type="datetime-local" id="expiryDate">
     <button onclick="createSecureQR()">สร้าง QR Code และบันทึกข้อมูล</button>
 
     <div id="qrcode">
         <div id="qrImage"></div>
-        <p id="qrStatus" style="font-size: 12px; color: #666;"></p>
+        <p id="qrStatus" style="font-size: 12px; color: #666; margin-top: 10px;"></p>
     </div>
 </div>
 
 <script>
-    // --- ตั้งค่า Supabase ตรงนี้ ---
-        const supabaseUrl = 'https://wzwyotzzxycqfwercakh.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6d3lvdHp6eHljcWZ3ZXJjYWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwNTg3MTMsImV4cCI6MjA3MjYzNDcxM30.lgiAf9oBUqsaWGb3u_80wuoKAODQHE_lIBxpGumhrno'; 
-        window.supabase = createClient(supabaseUrl, supabaseKey);
+    // --- ตั้งค่า Supabase ของคุณ ---
+    const supabaseUrl = 'https://wzwyotzzxycqfwercakh.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6d3lvdHp6eHljcWZ3ZXJjYWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwNTg3MTMsImV4cCI6MjA3MjYzNDcxM30.lgiAf9oBUqsaWGb3u_80wuoKAODQHE_lIBxpGumhrno'; 
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
     async function createSecureQR() {
         const url = document.getElementById('targetUrl').value;
         const expiry = document.getElementById('expiryDate').value;
 
-        if (!url || !expiry) return alert("กรุณากรอกข้อมูลให้ครบ");
+        if (!url || !expiry) return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
 
-        // 1. บันทึกข้อมูลลง Supabase
+        // 1. บันทึกข้อมูลลงตาราง qr_links
         const { data, error } = await supabaseClient
             .from('qr_links')
             .insert([{ target_url: url, expires_at: expiry }])
@@ -48,19 +50,19 @@
 
         if (error) {
             console.error(error);
-            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            alert("เกิดข้อผิดพลาด: " + error.message);
             return;
         }
 
-        // 2. สร้าง Link สำหรับหน้า Verify โดยใช้ ID จาก DB
+        // 2. สร้างลิงก์สำหรับหน้าตรวจสอบ (verify.html)
         const recordId = data[0].id;
         const verifyUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}verify.html?id=${recordId}`;
 
-        // 3. แสดงผล QR Code
+        // 3. แสดงผล QR Code ด้วย API
         const qrImg = document.getElementById('qrImage');
         qrImg.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}" alt="QR Code">`;
         document.getElementById('qrcode').style.display = 'block';
-        document.getElementById('qrStatus').innerText = `ID: ${recordId}\nหมดอายุ: ${new Date(expiry).toLocaleString()}`;
+        document.getElementById('qrStatus').innerText = `บันทึกสำเร็จ!\nหมดอายุ: ${new Date(expiry).toLocaleString()}`;
     }
 </script>
 
