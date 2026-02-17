@@ -36,7 +36,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6d3lvdHp6eHljcWZ3ZXJjYWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwNTg3MTMsImV4cCI6MjA3MjYzNDcxM30.lgiAf9oBUqsaWGb3u_80wuoKAODQHE_lIBxpGumhrno'; 
     const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-    async function createSecureQR() {
+        async function createSecureQR() {
         const url = document.getElementById('targetUrl').value;
         const expiry = document.getElementById('expiryDate').value;
 
@@ -54,9 +54,12 @@
             return;
         }
 
-// 2. เปลี่ยนจากของเดิม เป็นแบบนี้ครับ
-const currentPath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-const verifyUrl = `${currentPath}verify.html?id=${recordId}`;
+        // ต้องดึงค่า recordId ออกมาก่อนครับ
+        const recordId = data[0].id; 
+
+        // 2. ใช้ currentPath เพื่อสร้าง URL ให้แม่นยำขึ้นสำหรับ GitHub Pages
+        const currentPath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+        const verifyUrl = `${currentPath}verify.html?id=${recordId}`;
 
         // 3. แสดงผล QR Code ด้วย API
         const qrImg = document.getElementById('qrImage');
