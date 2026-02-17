@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Generator (Supabase)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px; background: #f4f7f6; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block; max-width: 400px; width: 100%; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #2ecc71; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; width: 95%; font-weight: bold; }
+        #qrcode { margin-top: 25px; padding: 10px; background: white; border: 1px solid #eee; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>สร้าง QR Code มีวันหมดอายุ</h2>
+    <input type="text" id="targetUrl" placeholder="ระบุ URL ปลายทาง">
+    <label style="display:block; text-align:left; margin-left:15px;">เลือกวันหมดอายุ:</label>
+    <input type="datetime-local" id="expiryDate">
+    <button onclick="createSecureQR()">สร้าง QR Code และบันทึกข้อมูล</button>
+
+    <div id="qrcode">
+        <div id="qrImage"></div>
+        <p id="qrStatus" style="font-size: 12px; color: #666;"></p>
+    </div>
+</div>
+
+<script>
+    // --- ตั้งค่า Supabase ตรงนี้ ---
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function createSecureQR() {
+        const url = document.getElementById('targetUrl').value;
+        const expiry = document.getElementById('expiryDate').value;
+
+        if (!url || !expiry) return alert("กรุณากรอกข้อมูลให้ครบ");
+
+        // 1. บันทึกข้อมูลลง Supabase
+        const { data, error } = await supabaseClient
+            .from('qr_links')
+            .insert([{ target_url: url, expires_at: expiry }])
+            .select();
+
+        if (error) {
+            console.error(error);
+            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            return;
+        }
+
+        // 2. สร้าง Link สำหรับหน้า Verify โดยใช้ ID จาก DB
+        const recordId = data[0].id;
+        const verifyUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}verify.html?id=${recordId}`;
+
+        // 3. แสดงผล QR Code
+        const qrImg = document.getElementById('qrImage');
+        qrImg.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}" alt="QR Code">`;
+        document.getElementById('qrcode').style.display = 'block';
+        document.getElementById('qrStatus').innerText = `ID: ${recordId}\nหมดอายุ: ${new Date(expiry).toLocaleString()}`;
+    }
+</script>
+
+</body>
+</html>
