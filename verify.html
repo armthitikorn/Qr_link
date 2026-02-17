@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checking QR Code...</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fafafa; }
+        .card { text-align: center; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); max-width: 350px; width: 90%; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #2ecc71; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { color: #e74c3c; font-weight: bold; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div id="loader" class="loader"></div>
+    <div id="statusText">กำลังตรวจสอบข้อมูลจากระบบ...</div>
+</div>
+
+<script>
+    // --- ตั้งค่า Supabase (ต้องเหมือนหน้า index.html) ---
+    const supabaseUrl = 'https://wzwyotzzxycqfwercakh.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6d3lvdHp6eHljcWZ3ZXJjYWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwNTg3MTMsImV4cCI6MjA3MjYzNDcxM30.lgiAf9oBUqsaWGb3u_80wuoKAODQHE_lIBxpGumhrno'; 
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    async function checkLink() {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+
+        if (!id) {
+            return showError("ไม่พบรหัส ID ในลิงก์<br>(URL ไม่ถูกต้อง)");
+        }
+
+        try {
+            // ดึงข้อมูลจาก Supabase
+            const { data, error } = await supabaseClient
+                .from('qr_links')
+                .select('target_url, expires_at')
+                .eq('id', id)
+                .single();
+
+            if (error || !data) {
+                console.error(error);
+                return showError("ไม่พบข้อมูล QR Code นี้ในฐานข้อมูล<br>(อาจถูกลบไปแล้ว)");
+            }
+
+            const now = new Date();
+            const expiryDate = new Date(data.expires_at);
+
+            if (now > expiryDate) {
+                showError(`ขออภัย ลิงก์นี้หมดอายุแล้วเมื่อ:<br>${expiryDate.toLocaleString()}`);
+            } else {
+                document.getElementById('statusText').innerText = "ตรวจสอบผ่าน! กำลังพาคุณไปที่หน้าเว็บ...";
+                // ส่งต่อไปยัง URL ปลายทาง
+                setTimeout(() => {
+                    window.location.href = data.target_url;
+                }, 800);
+            }
+        } catch (err) {
+            showError("เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล");
+            console.error(err);
+        }
+    }
+
+    function showError(msg) {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('statusText').innerHTML = `<span class="error">${msg}</span>`;
+    }
+
+    checkLink();
+</script>
+
+</body>
+</html>
