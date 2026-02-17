@@ -31,41 +31,62 @@
 </div>
 
 <script>
-    // --- ตั้งค่า Supabase ของคุณ ---
+    // --- ตั้งค่า Supabase ---
     const supabaseUrl = 'https://wzwyotzzxycqfwercakh.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6d3lvdHp6eHljcWZ3ZXJjYWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwNTg3MTMsImV4cCI6MjA3MjYzNDcxM30.lgiAf9oBUqsaWGb3u_80wuoKAODQHE_lIBxpGumhrno'; 
     const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-        async function createSecureQR() {
-        const url = document.getElementById('targetUrl').value;
-        const expiry = document.getElementById('expiryDate').value;
+    async function createSecureQR() {
+        const urlInput = document.getElementById('targetUrl');
+        const expiryInput = document.getElementById('expiryDate');
+        const qrContainer = document.getElementById('qrcode');
+        const qrImgDiv = document.getElementById('qrImage');
+        const statusDiv = document.getElementById('qrStatus');
 
-        if (!url || !expiry) return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+        const url = urlInput.value;
+        const expiry = expiryInput.value;
 
-        // 1. บันทึกข้อมูลลงตาราง qr_links
-        const { data, error } = await supabaseClient
-            .from('qr_links')
-            .insert([{ target_url: url, expires_at: expiry }])
-            .select();
-
-        if (error) {
-            console.error(error);
-            alert("เกิดข้อผิดพลาด: " + error.message);
+        if (!url || !expiry) {
+            alert("กรุณากรอกข้อมูลให้ครบถ้วน");
             return;
         }
 
-        // ต้องดึงค่า recordId ออกมาก่อนครับ
-        const recordId = data[0].id; 
+        try {
+            // 1. ส่งข้อมูลไปบันทึกที่ Supabase
+            const { data, error } = await supabaseClient
+                .from('qr_links')
+                .insert([{ target_url: url, expires_at: expiry }])
+                .select();
 
-        // 2. ใช้ currentPath เพื่อสร้าง URL ให้แม่นยำขึ้นสำหรับ GitHub Pages
-        const currentPath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-        const verifyUrl = `${currentPath}verify.html?id=${recordId}`;
+            // เช็กว่ามี Error จาก Supabase ไหม
+            if (error) {
+                console.error("Supabase Error:", error);
+                alert("เกิดข้อผิดพลาดจากฐานข้อมูล: " + error.message);
+                return;
+            }
 
-        // 3. แสดงผล QR Code ด้วย API
-        const qrImg = document.getElementById('qrImage');
-        qrImg.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}" alt="QR Code">`;
-        document.getElementById('qrcode').style.display = 'block';
-        document.getElementById('qrStatus').innerText = `บันทึกสำเร็จ!\nหมดอายุ: ${new Date(expiry).toLocaleString()}`;
+            // 2. ตรวจสอบว่ามีข้อมูลกลับมาจริงไหมก่อนดึง ID
+            if (data && data.length > 0) {
+                const recordId = data[0].id; // ประกาศค่า recordId ที่นี่
+                console.log("บันทึกสำเร็จ ID:", recordId);
+
+                // 3. คำนวณ Path สำหรับสร้างลิงก์ verify
+                const currentPath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+                const verifyUrl = `${currentPath}verify.html?id=${recordId}`;
+
+                // 4. แสดงผล QR Code
+                const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
+                qrImgDiv.innerHTML = `<img src="${qrApiUrl}" alt="QR Code" style="margin: 10px;">`;
+                qrContainer.style.display = 'block';
+                statusDiv.innerText = `สร้างสำเร็จ!\nID: ${recordId}\nหมดอายุ: ${new Date(expiry).toLocaleString()}`;
+            } else {
+                alert("ไม่ได้รับข้อมูลตอบกลับจากฐานข้อมูล");
+            }
+
+        } catch (err) {
+            console.error("Unexpected Error:", err);
+            alert("เกิดข้อผิดพลาดที่ไม่คาดคิด: " + err.message);
+        }
     }
 </script>
 
